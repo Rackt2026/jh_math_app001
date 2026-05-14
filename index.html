@@ -3,23 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <!-- iPhone用アプリ化設定 -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="数学マスター">
     
     <title>数学マスター極：符号の試練</title>
     <style>
-        /* 全体のレイアウト：はみ出してもスクロールできるように修正 */
         body { 
             font-family: sans-serif; 
             background-color: #eef2f3; 
             margin: 0; 
             display: flex; 
             justify-content: center; 
-            align-items: flex-start; /* 上詰めにする */
+            align-items: flex-start;
             min-height: 100vh; 
-            overflow-y: auto; /* 縦スクロールを許可 */
+            overflow-y: auto; 
             -webkit-overflow-scrolling: touch;
         }
 
@@ -29,7 +27,7 @@
             border-radius: 20px; 
             width: 95%; 
             max-width: 450px; 
-            margin: 10px auto; /* 上下に余白 */
+            margin: 10px auto; 
             display: flex; 
             flex-direction: column; 
             box-shadow: 0 5px 15px rgba(0,0,0,0.1); 
@@ -46,7 +44,6 @@
 
         .info { display: flex; justify-content: space-around; font-size: 0.9rem; font-weight: bold; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px; }
         
-        /* 問題エリア：高さが可変になるように調整 */
         .problem-box { 
             background: #f8f9fa; 
             border-radius: 12px; 
@@ -63,7 +60,6 @@
         }
         .problem { font-size: 2.2rem; font-weight: bold; color: #2c3e50; text-align: center; }
         
-        /* 判定メッセージレイヤー */
         #feedback-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; pointer-events: none; opacity: 0; transform: scale(0.5); transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275); background: rgba(255,255,255,0.8); }
         #feedback-overlay.show { opacity: 1; transform: scale(1); }
         #feedback-text { font-size: 3.5rem; font-weight: 900; text-align: center; line-height: 1.1; -webkit-text-stroke: 4px white; paint-order: stroke; }
@@ -72,7 +68,6 @@
 
         .display-area { font-size: 2.2rem; background: #fff; border: 2px solid #cbd5e0; border-radius: 10px; margin-bottom: 10px; height: 3.5rem; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #2196f3; flex-shrink: 0; }
 
-        /* テンキー：スマホでも押しやすいサイズに固定 */
         .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; flex-shrink: 0; margin-bottom: 5px; }
         .num-btn { background-color: #fcfcfc; border: 1px solid #ddd; border-radius: 10px; font-size: 1.5rem; padding: 15px 0; font-weight: bold; cursor: pointer; box-shadow: 0 3px 0 #ccc; -webkit-tap-highlight-color: transparent; }
         .num-btn:active { transform: translateY(2px); box-shadow: none; background-color: #eee; }
@@ -106,7 +101,7 @@
     </div>
 
     <div class="info">
-        <div>残り: <span id="q-count">15</span></div>
+        <div>残り: <span id="q-count">10</span></div>
         <div style="color:#4caf50">正解: <span id="correct-count">0</span></div>
         <div style="color:#f44336">ミス: <span id="miss-count">0</span></div>
     </div>
@@ -151,7 +146,7 @@
     let currentHint = "";
     let wrongCountInProblem = 0;
     let currentInput = "";
-    const TOTAL_QUESTIONS = 15; // ここを30から15に変更しました
+    let totalQuestions = 10;
 
     const msgCorrect = ["正解！", "完璧！", "天才！", "神！", "見事！"];
     const msgWrong = ["ちがうよ", "おしい！", "あれれ？", "よく見て"];
@@ -209,15 +204,39 @@
         setTimeout(() => { overlay.classList.remove('show'); }, type === 'miss' ? 2000 : 800);
     }
 
-    function selectLevel(lv) { level = lv; document.getElementById('current-lv-display').innerText = lv; document.querySelectorAll('.level-btn').forEach((b, i) => b.classList.toggle('active', i === lv - 1)); resetGame(); }
+    function selectLevel(lv) { 
+        level = lv; 
+        totalQuestions = (lv >= 4) ? 5 : 10;
+        document.getElementById('current-lv-display').innerText = lv; 
+        document.querySelectorAll('.level-btn').forEach((b, i) => b.classList.toggle('active', i === lv - 1)); 
+        resetGame(); 
+    }
+    
     function resetGame() { questionIndex = 0; correctTotal = 0; missTotal = 0; updateUI(); nextProblem(); }
     function inputNum(n) { if (currentInput.length < 6) { currentInput += n; document.getElementById('display-value').innerText = currentInput; } }
     function clearInput() { currentInput = ""; document.getElementById('display-value').innerText = ""; }
-    function updateUI() { document.getElementById('q-count').innerText = TOTAL_QUESTIONS - questionIndex; document.getElementById('correct-count').innerText = correctTotal; document.getElementById('miss-count').innerText = missTotal; }
+    function updateUI() { document.getElementById('q-count').innerText = totalQuestions - questionIndex; document.getElementById('correct-count').innerText = correctTotal; document.getElementById('miss-count').innerText = missTotal; }
 
     function generateTerm(isFirst = false) {
-        const num = Math.floor(Math.random() * 9) + 1; const sign = Math.random() > 0.5 ? '+' : '-'; const innerSign = Math.random() > 0.5 ? '' : '-';
-        if (isFirst) { const firstNum = Math.floor(Math.random() * 19) - 9; return { text: `${firstNum}`, val: firstNum }; }
+        // レベル5の場合、確率で1けた(1-9)か2けた(10-99)を決定
+        let num;
+        if (level === 5) {
+            num = (Math.random() > 0.5) ? (Math.floor(Math.random() * 90) + 10) : (Math.floor(Math.random() * 9) + 1);
+        } else {
+            num = Math.floor(Math.random() * 9) + 1;
+        }
+        
+        const sign = Math.random() > 0.5 ? '+' : '-'; 
+        const innerSign = Math.random() > 0.5 ? '' : '-';
+        
+        if (isFirst) { 
+            let firstMax = (level === 5) ? 99 : 9;
+            let firstNum = Math.floor(Math.random() * (firstMax * 2 + 1)) - firstMax; 
+            // 0を避ける
+            if(firstNum === 0) firstNum = 1;
+            return { text: `${firstNum}`, val: firstNum }; 
+        }
+        
         if (sign === '-' && innerSign === '-') return { text: `- (-${num})`, val: num, hint: `- (-${num}) → +${num}` };
         if (sign === '-' && innerSign === '') return { text: `- (${num})`, val: -num, hint: `- (${num}) → -${num}` };
         if (sign === '+' && innerSign === '-') return { text: `+ (-${num})`, val: -num, hint: `+ (-${num}) → -${num}` };
@@ -226,7 +245,12 @@
 
     function nextProblem() {
         wrongCountInProblem = 0; clearInput(); let termsCount = level + 1; let expr = ""; let total = 0; let hints = [];
-        for (let i = 0; i < termsCount; i++) { let res = generateTerm(i === 0); expr += (i === 0 ? "" : " ") + res.text; total += res.val; if (res.hint) hints.push(res.hint); }
+        for (let i = 0; i < termsCount; i++) { 
+            let res = generateTerm(i === 0); 
+            expr += (i === 0 ? "" : " ") + res.text; 
+            total += res.val; 
+            if (res.hint) hints.push(res.hint); 
+        }
         currentAnswer = total; currentHint = "💡ヒント：<br>" + hints.join(" | "); 
         document.getElementById('problem').innerHTML = expr + " = ?";
         document.getElementById('hint-area').style.display = "none"; document.getElementById('enter-btn').disabled = false;
@@ -244,7 +268,9 @@
             setTimeout(proceed, 1000);
         } else {
             wrongCountInProblem++;
-            if (wrongCountInProblem < 2) {
+            let maxChances = (level >= 4) ? 2 : 1;
+
+            if (wrongCountInProblem < maxChances) {
                 const msg = msgWrong[Math.floor(Math.random() * msgWrong.length)];
                 showFeedback('wrong', msg);
                 document.getElementById('hint-area').innerHTML = currentHint;
@@ -259,8 +285,25 @@
         }
     }
 
-    function proceed() { questionIndex++; if (questionIndex >= TOTAL_QUESTIONS) { showResult(); } else { updateUI(); nextProblem(); } }
-    function showResult() { document.getElementById('game-screen').style.display = "none"; document.getElementById('result-screen').style.display = "flex"; const score = Math.round((correctTotal / TOTAL_QUESTIONS) * 100); document.getElementById('final-score').innerText = score; document.getElementById('final-correct').innerText = correctTotal; document.getElementById('final-miss').innerText = missTotal; }
+    function proceed() { 
+        questionIndex++; 
+        if (questionIndex >= totalQuestions) { 
+            showResult(); 
+        } else { 
+            updateUI(); 
+            nextProblem(); 
+        } 
+    }
+
+    function showResult() { 
+        document.getElementById('game-screen').style.display = "none"; 
+        document.getElementById('result-screen').style.display = "flex"; 
+        const score = Math.round((correctTotal / totalQuestions) * 100); 
+        document.getElementById('final-score').innerText = score; 
+        document.getElementById('final-correct').innerText = correctTotal; 
+        document.getElementById('final-miss').innerText = missTotal; 
+    }
+
     nextProblem();
 </script>
 </body>
