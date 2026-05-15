@@ -34,6 +34,16 @@
             box-sizing: border-box; 
             position: relative;
         }
+
+        /* ロゴ用のスタイル追加 */
+        .logo-container {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+        .logo-img {
+            max-width: 150px; /* 必要に応じてサイズ調整してください */
+            height: auto;
+        }
         
         .level-btns { display: flex; gap: 4px; margin-bottom: 5px; z-index: 10; }
         .btn { padding: 8px; cursor: pointer; border: none; border-radius: 6px; font-weight: bold; font-size: 0.8rem; flex: 1; background-color: #ddd; -webkit-tap-highlight-color: transparent; }
@@ -87,6 +97,10 @@
 <div class="container" id="game-screen">
     <div id="feedback-overlay"><div id="feedback-text"></div></div>
     
+    <div class="logo-container">
+        <img src="rogo.png" alt="Logo" class="logo-img">
+    </div>
+
     <div class="level-btns">
         <button class="btn level-btn active" onclick="selectLevel(1)">Lv.1</button>
         <button class="btn level-btn" onclick="selectLevel(2)">Lv.2</button>
@@ -218,7 +232,6 @@
     function updateUI() { document.getElementById('q-count').innerText = totalQuestions - questionIndex; document.getElementById('correct-count').innerText = correctTotal; document.getElementById('miss-count').innerText = missTotal; }
 
     function generateTerm(isFirst = false) {
-        // レベル5の場合、確率で1けた(1-9)か2けた(10-99)を決定
         let num;
         if (level === 5) {
             num = (Math.random() > 0.5) ? (Math.floor(Math.random() * 90) + 10) : (Math.floor(Math.random() * 9) + 1);
@@ -232,7 +245,6 @@
         if (isFirst) { 
             let firstMax = (level === 5) ? 99 : 9;
             let firstNum = Math.floor(Math.random() * (firstMax * 2 + 1)) - firstMax; 
-            // 0を避ける
             if(firstNum === 0) firstNum = 1;
             return { text: `${firstNum}`, val: firstNum }; 
         }
