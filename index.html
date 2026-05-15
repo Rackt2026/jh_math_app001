@@ -35,6 +35,7 @@
             position: relative;
         }
 
+        /* ロゴ用のスタイル */
         .logo-container {
             text-align: center;
             margin-bottom: 5px;
@@ -131,4 +132,197 @@
 
     <div class="numpad">
         <button class="num-btn" onclick="inputNum('1')">1</button>
-        <button class="num-btn" onclick="
+        <button class="num-btn" onclick="inputNum('2')">2</button>
+        <button class="num-btn" onclick="inputNum('3')">3</button>
+        <button class="num-btn" onclick="inputNum('4')">4</button>
+        <button class="num-btn" onclick="inputNum('5')">5</button>
+        <button class="num-btn" onclick="inputNum('6')">6</button>
+        <button class="num-btn" onclick="inputNum('7')">7</button>
+        <button class="num-btn" onclick="inputNum('8')">8</button>
+        <button class="num-btn" onclick="inputNum('9')">9</button>
+        <button class="num-btn op-btn" onclick="inputNum('-')">ー</button>
+        <button class="num-btn" onclick="inputNum('0')">0</button>
+        <button class="num-btn clear-btn" onclick="clearInput()">C</button>
+        <button class="num-btn enter-btn" id="enter-btn" onclick="checkAnswer()">判定する！</button>
+    </div>
+</div>
+
+<div class="container result-screen" id="result-screen">
+    <h1>試練達成！</h1>
+    <div style="font-size: 5rem; font-weight: 900;"><span id="final-score">0</span>点</div>
+    <p>正解：<span id="final-correct">0</span> / ミス：<span id="final-miss">0</span></p>
+    <button class="btn" style="background-color: #fff; color: #764ba2; width: 80%; padding: 15px; font-size: 1.5rem;" onclick="location.reload()">再挑戦</button>
+</div>
+
+<script>
+    let level = 1;
+    let questionIndex = 0;
+    let correctTotal = 0;
+    let missTotal = 0;
+    let currentAnswer = 0;
+    let currentHint = "";
+    let wrongCountInProblem = 0;
+    let currentInput = "";
+    let totalQuestions = 10;
+
+    const msgCorrect = ["正解！", "完璧！", "天才！", "神！", "見事！"];
+    const msgWrong = ["ちがうよ", "おしい！", "あれれ？", "よく見て"];
+
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq, type, duration, g) {
+        try {
+            const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(g, audioCtx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+            osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration);
+        } catch(e){}
+    }
+    function soundCorrect() { playTone(880, 'sine', 0.4, 0.1); setTimeout(() => playTone(1318, 'sine', 0.4, 0.08), 80); }
+    function soundWrong() { playTone(349, 'triangle', 0.3, 0.1); }
+    function soundMiss() { playTone(110, 'sawtooth', 0.8, 0.12); }
+
+    function createConfetti() {
+        const pBox = document.getElementById('p-box');
+        for (let i = 0; i < 25; i++) {
+            const c = document.createElement('div');
+            c.className = 'confetti';
+            c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            c.style.left = Math.random() * 100 + '%';
+            c.style.top = Math.random() * 100 + '%';
+            pBox.appendChild(c);
+            setTimeout(() => c.remove(), 600);
+        }
+    }
+
+    function showFeedback(type, text) {
+        const overlay = document.getElementById('feedback-overlay');
+        const fText = document.getElementById('feedback-text');
+        const pText = document.getElementById('problem');
+        overlay.classList.remove('show');
+        pText.classList.remove('shake');
+
+        if (type === 'correct') {
+            soundCorrect();
+            fText.innerText = text;
+            fText.style.color = '#4caf50';
+            createConfetti();
+        } else if (type === 'wrong') {
+            soundWrong();
+            fText.innerText = text;
+            fText.style.color = '#ff9800';
+            pText.classList.add('shake');
+        } else {
+            soundMiss();
+            fText.innerHTML = `<span style="font-size: 1.8rem;">残念！正解は</span><br>${currentAnswer}`;
+            fText.style.color = '#f44336';
+        }
+
+        setTimeout(() => overlay.classList.add('show'), 10);
+        setTimeout(() => { overlay.classList.remove('show'); }, type === 'miss' ? 2000 : 800);
+    }
+
+    function selectLevel(lv) { 
+        level = lv; 
+        totalQuestions = (lv >= 4) ? 5 : 10;
+        document.getElementById('current-lv-display').innerText = lv; 
+        document.querySelectorAll('.level-btn').forEach((b, i) => b.classList.toggle('active', i === lv - 1)); 
+        resetGame(); 
+    }
+    
+    function resetGame() { questionIndex = 0; correctTotal = 0; missTotal = 0; updateUI(); nextProblem(); }
+    function inputNum(n) { if (currentInput.length < 6) { currentInput += n; document.getElementById('display-value').innerText = currentInput; } }
+    function clearInput() { currentInput = ""; document.getElementById('display-value').innerText = ""; }
+    function updateUI() { document.getElementById('q-count').innerText = totalQuestions - questionIndex; document.getElementById('correct-count').innerText = correctTotal; document.getElementById('miss-count').innerText = missTotal; }
+
+    function generateTerm(isFirst = false) {
+        let num;
+        if (level === 5) {
+            num = (Math.random() > 0.5) ? (Math.floor(Math.random() * 90) + 10) : (Math.floor(Math.random() * 9) + 1);
+        } else {
+            num = Math.floor(Math.random() * 9) + 1;
+        }
+        
+        const sign = Math.random() > 0.5 ? '+' : '-'; 
+        const innerSign = Math.random() > 0.5 ? '' : '-';
+        
+        if (isFirst) { 
+            let firstMax = (level === 5) ? 99 : 9;
+            let firstNum = Math.floor(Math.random() * (firstMax * 2 + 1)) - firstMax; 
+            if(firstNum === 0) firstNum = 1;
+            return { text: `${firstNum}`, val: firstNum }; 
+        }
+        
+        if (sign === '-' && innerSign === '-') return { text: `- (-${num})`, val: num, hint: `- (-${num}) → +${num}` };
+        if (sign === '-' && innerSign === '') return { text: `- (${num})`, val: -num, hint: `- (${num}) → -${num}` };
+        if (sign === '+' && innerSign === '-') return { text: `+ (-${num})`, val: -num, hint: `+ (-${num}) → -${num}` };
+        return { text: `+ (${num})`, val: num, hint: `+ (${num}) → +${num}` };
+    }
+
+    function nextProblem() {
+        wrongCountInProblem = 0; clearInput(); let termsCount = level + 1; let expr = ""; let total = 0; let hints = [];
+        for (let i = 0; i < termsCount; i++) { 
+            let res = generateTerm(i === 0); 
+            expr += (i === 0 ? "" : " ") + res.text; 
+            total += res.val; 
+            if (res.hint) hints.push(res.hint); 
+        }
+        currentAnswer = total; currentHint = "💡ヒント：<br>" + hints.join(" | "); 
+        document.getElementById('problem').innerHTML = expr + " = ?";
+        document.getElementById('hint-area').style.display = "none"; document.getElementById('enter-btn').disabled = false;
+    }
+
+    function checkAnswer() {
+        if (currentInput === "" || currentInput === "-") return;
+        if (audioCtx.state === 'suspended') { audioCtx.resume(); }
+
+        if (parseInt(currentInput) === currentAnswer) {
+            const msg = msgCorrect[Math.floor(Math.random() * msgCorrect.length)];
+            showFeedback('correct', msg);
+            correctTotal++;
+            document.getElementById('enter-btn').disabled = true;
+            setTimeout(proceed, 1000);
+        } else {
+            wrongCountInProblem++;
+            let maxChances = (level >= 4) ? 2 : 1;
+
+            if (wrongCountInProblem < maxChances) {
+                const msg = msgWrong[Math.floor(Math.random() * msgWrong.length)];
+                showFeedback('wrong', msg);
+                document.getElementById('hint-area').innerHTML = currentHint;
+                document.getElementById('hint-area').style.display = "block";
+                clearInput();
+            } else {
+                showFeedback('miss', "");
+                missTotal++;
+                document.getElementById('enter-btn').disabled = true;
+                setTimeout(proceed, 2200);
+            }
+        }
+    }
+
+    function proceed() { 
+        questionIndex++; 
+        if (questionIndex >= totalQuestions) { 
+            showResult(); 
+        } else { 
+            updateUI(); 
+            nextProblem(); 
+        } 
+    }
+
+    function showResult() { 
+        document.getElementById('game-screen').style.display = "none"; 
+        document.getElementById('result-screen').style.display = "flex"; 
+        const score = Math.round((correctTotal / totalQuestions) * 100); 
+        document.getElementById('final-score').innerText = score; 
+        document.getElementById('final-correct').innerText = correctTotal; 
+        document.getElementById('final-miss').innerText = missTotal; 
+    }
+
+    // 初回の問題読み込み
+    window.onload = function() {
+        nextProblem();
+    };
+</script>
+</body>
+</html>
